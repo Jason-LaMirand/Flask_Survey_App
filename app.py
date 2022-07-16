@@ -10,12 +10,12 @@ app.config['SECRET_KEY'] = "cheese"
 app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
 debug = DebugToolbarExtension(app)
 
-responses = []
+RESPONSE = "responses"
 
 
 @app.route('/')
 def home_page():
-    """Shows home page of application."""
+    """Shows home page of application. Gets information like 'title' and 'instructions' from the survey document."""
 
     title = survey.title
     instructions = survey.instructions
@@ -25,7 +25,8 @@ def home_page():
 
 @app.route("/start", methods=["POST"])
 def start_survey():
-    """Clear the session of responses."""
+    """Clear response data."""
+    session[RESPONSE] = []
 
     return redirect("/questions/0")
 
@@ -33,16 +34,18 @@ def start_survey():
 @app.route('/questions/<int:question_id>')
 def show_questions(question_id):
     """Shows question of the survey"""
+    responses = session.get(RESPONSE)
+
     if (responses is None):
-        # trying to access question page too soon
+        """return user to Home if they have not started the survey yet."""
         return redirect("/")
 
     if (len(responses) == len(survey.questions)):
-        # They've answered all the questions! Thank them.
+        """Sends user to the completion page if they have already answered all the questions."""
         return redirect("/complete")
 
     if (len(responses) != question_id):
-        # Trying to access questions out of order.
+        """sends user an error message if they typed in a wrong question id."""
         flash(f"Invalid question id: {question_id}.")
         return redirect(f"/questions/{len(responses)}")
 
@@ -53,19 +56,23 @@ def show_questions(question_id):
 
 @app.route('/answer', methods=["POST"])
 def handling_answers():
-    answers = request.form['answer']
-
-    responses.append(answers)
+    """Gets the resonses from the form."""
+    answer = request.form['answer']
+    """Sends answers to questins and put them in the session[RESPONSE]"""
+    responses = session[RESPONSE]
+    responses.append(answer)
+    session[RESPONSE] = responses
 
     if (len(responses) == len(survey.questions)):
-        # They've answered all the questions! Thank them.
+        """if the responses are all there an equal to the same amount from the survey it pushes you to the completion page."""
         return redirect("/complete")
 
     else:
+        """If not completed it will return you to the questions that you need to do in order."""
         return redirect(f"/questions/{len(responses)}")
 
 
 @app.route('/complete')
 def finished_survey():
-
+    """Opens up a you have completed page."""
     return render_template('complete.html')
